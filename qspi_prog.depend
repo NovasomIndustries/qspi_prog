@@ -1,0 +1,36 @@
+# depslib dependency file v1.0
+1519140746 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/gpio.c
+	"gpio.h"
+
+1519140629 /Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/gpio.h
+	<sys/stat.h>
+	<sys/types.h>
+	<fcntl.h>
+	<stdio.h>
+	<stdlib.h>
+	<unistd.h>
+
+1519216678 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.c
+	"spi.h"
+
+1518515231 /Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.h
+	<stdint.h>
+	<unistd.h>
+	<stdio.h>
+	<stdlib.h>
+	<getopt.h>
+	<fcntl.h>
+	<sys/ioctl.h>
+	<linux/types.h>
+	<linux/spi/spidev.h>
+
+1519217290 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi_prog.c
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+	<ctype.h>
+	<stdarg.h>
+	<stddef.h>
+	"spi.h"
+	"gpio.h"
+
