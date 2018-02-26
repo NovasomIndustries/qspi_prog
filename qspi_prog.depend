@@ -10,10 +10,10 @@
 	<stdlib.h>
 	<unistd.h>
 
-1519216678 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.c
+1519393980 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.c
 	"spi.h"
 
-1518515231 /Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.h
+1519307629 /Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi.h
 	<stdint.h>
 	<unistd.h>
 	<stdio.h>
@@ -24,7 +24,7 @@
 	<linux/types.h>
 	<linux/spi/spidev.h>
 
-1519217290 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi_prog.c
+1519319768 source:/Devel/NOVAsom_SDK/Codeblocks/App/qspi_prog/spi_prog.c
 	<stdio.h>
 	<string.h>
 	<stdlib.h>

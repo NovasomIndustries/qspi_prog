@@ -15,104 +15,85 @@ int failcount;
 struct spi_ioc_transfer xfer[2];
 
 
-//////////
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
 // Init SPIdev
-//////////
+//
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 int spi_init(char filename[40])
 {
     int file;
     __u8    mode, lsb, bits;
-    __u32  speed=25000000;
+    __u32   speed = 25000000;
 
-        if ((file = open(filename,O_RDWR)) < 0)
-        {
-            printf("Failed to open the bus.");
-            /* ERROR HANDLING; you can check errno to see what went wrong */
-            com_serial=0;
-            exit(1);
-        }
+    if ((file = open(filename,O_RDWR)) < 0)
+    {
+        printf("Failed to open the bus.");
+        /* ERROR HANDLING; you can check errno to see what went wrong */
+        com_serial = 0;
+        //exit(1);
+        return -1;
+    }
 
-        ///////////////
-        // Verifications
-        ///////////////
-        //possible modes: mode |= SPI_LOOP; mode |= SPI_CPHA; mode |= SPI_CPOL; mode |= SPI_LSB_FIRST; mode |= SPI_CS_HIGH; mode |= SPI_3WIRE; mode |= SPI_NO_CS; mode |= SPI_READY;
-        //multiple possibilities using |
+    /*mode = SPI_MODE_0;
+    if (ioctl(file, SPI_IOC_WR_MODE, &mode)<0)
+    {
+        perror("can't set spi mode");
+        return;
+    }
+    */
 
+    if (ioctl(file, SPI_IOC_RD_MODE, &mode) < 0)//
+    {
+        perror("SPI rd_mode");
+        return -1;
+    }
 
-            /*mode = SPI_MODE_0;
+    lsb = 0;
+    if (ioctl(file, SPI_IOC_WR_LSB_FIRST, &lsb) < 0)
+    {
+        perror("SPI error wr !");
+        return -1;
+    }
 
+    if (ioctl(file, SPI_IOC_RD_LSB_FIRST, &lsb) < 0)
+    {
+        perror("SPI rd_lsb_fist");
+        return -1;
+    }
 
-            if (ioctl(file, SPI_IOC_WR_MODE, &mode)<0)   {
+    /*
+    if (ioctl(file, SPI_IOC_WR_BITS_PER_WORD, (__u8[1]){8})<0)
+    {
+        perror("can't set bits per word");
+        return;
+    }
+    */
+    if (ioctl(file, SPI_IOC_RD_BITS_PER_WORD, &bits) < 0)
+    {
+        perror("SPI bits_per_word");
+        return -1;
+    }
+    /*
+    if (ioctl(file, SPI_IOC_WR_MAX_SPEED_HZ, &speed)<0)
+    {
+        perror("can't set max speed hz");
+        return;
+    }
+    */
+    if (ioctl(file, SPI_IOC_RD_MAX_SPEED_HZ, &speed) < 0)
+    {
+        perror("SPI max_speed_hz");
+        return -1;
+    }
 
-                perror("can't set spi mode");
-                return;
-            }
-            */
-
-
-            if (ioctl(file, SPI_IOC_RD_MODE, &mode) < 0)//
-            {
-                perror("SPI rd_mode");
-                return;
-            }
-
-
-            lsb = 0;
-
-            if (ioctl(file, SPI_IOC_WR_LSB_FIRST, &lsb) < 0)
-            {
-                perror("SPI error wr !");
-                return;
-            }
-
-
-
-            if (ioctl(file, SPI_IOC_RD_LSB_FIRST, &lsb) < 0)
-            {
-                perror("SPI rd_lsb_fist");
-                return;
-            }
-
-
-
-
-        //sunxi supports only 8 bits
-        /*
-            if (ioctl(file, SPI_IOC_WR_BITS_PER_WORD, (__u8[1]){8})<0)
-                {
-                perror("can't set bits per word");
-                return;
-                }
-        */
-            if (ioctl(file, SPI_IOC_RD_BITS_PER_WORD, &bits) < 0)
-            {
-                perror("SPI bits_per_word");
-                return;
-            }
-        /*
-            if (ioctl(file, SPI_IOC_WR_MAX_SPEED_HZ, &speed)<0)
-                {
-                perror("can't set max speed hz");
-                return;
-                }
-        */
-            if (ioctl(file, SPI_IOC_RD_MAX_SPEED_HZ, &speed) < 0)
-            {
-                perror("SPI max_speed_hz");
-                return;
-            }
-
-
-    printf("%s: spi mode %d, %d bits %sper word, %d Hz max\n",filename, mode, bits, lsb ? "(lsb first) " : "(msb first) ", speed);
-
+    printf("\n%s: spi mode %d, %d bits %sper word, %d Hz max\n",filename, mode, bits, lsb ? "(lsb first) " : "(msb first) ", speed);
 
     xfer[0].len             = 0;        /* Length of  command to write*/
     xfer[0].cs_change       = 0;        /* Keep CS activated */
     xfer[0].delay_usecs     = 0;        // delay in us
     xfer[0].speed_hz        = 2500000;  // speed
     xfer[0].bits_per_word   = 8;        // bites per word 8
-
-
 
     return file;
 }
@@ -121,13 +102,13 @@ int spi_init(char filename[40])
 
 
 
-//////////
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 //
 //  SPI DEV handler
 //
 //
-//////////
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *read_buf, int file)
 {
     int status;
@@ -146,11 +127,16 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
     xfer[0].rx_buf = (unsigned long)loc_rx_buff;
     xfer[0].len    = 3;             /* Length of  command to write+read*/
 
-    for (i=0; i < 1000; i++){
 
+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+                                 Check device  BUSY
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    for (i=0; i < 1000; i++)
+    {
         if ( ioctl(file, SPI_IOC_MESSAGE(1), xfer) )
         {
-            usleep(1000);
+            usleep(100);
             //printf("loc_rx_buff: 0x%02x\r\n", loc_rx_buff[1]);//eliminare test
 
             if (loc_rx_buff[1] & 0x01){
@@ -166,7 +152,6 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
                 //printf("device is free!\r\n");//eliminare test
                 break;
             }
-
         }
         else
         {
@@ -175,7 +160,6 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
         }
 
     }
-
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+                     END Check device  BUSY
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -201,162 +185,6 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
 
 
 
-
-//void ErasePage(unsigned int address, int file)
-//{
-//    unsigned char loc_tx_buff[4];
-//    unsigned char loc_rx_buff[1024];
-//    unsigned int rd_wr_len  = 0;
-//
-//
-//    /* WRITE_ENABLED */
-//    loc_tx_buff[0] = CMD_WRITE_ENABLED;
-//    rd_wr_len      = 1;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//
-//    /* ERASE */
-//    loc_tx_buff[0] = CMD_ERASE_512B_PAGE;
-//    loc_tx_buff[1] = (unsigned char)(address >> 16);
-//    loc_tx_buff[2] = (unsigned char)(address >> 8);
-//    loc_tx_buff[3] = (unsigned char)address;
-//    rd_wr_len      = 4;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//
-//
-//    /* WRITE_DISABLED */
-//    loc_tx_buff[0] = CMD_WRITE_DISABLED;
-//    rd_wr_len      = 1;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//
-//
-//}
-
-
-//void ReadPage(unsigned int address, unsigned char *read_buf, int file)
-//{
-//
-//    unsigned char loc_tx_buff[4];
-//    unsigned char loc_rx_buff[4];
-//    unsigned int rd_wr_len  = 0;
-//
-//
-//    /* READ OAGE COMMAND */
-//    loc_tx_buff[0] = CMD_READ_512B_PAGE;
-//    loc_tx_buff[1] = (unsigned char)(address >> 16);
-//    loc_tx_buff[2] = (unsigned char)(address >> 8);
-//    loc_tx_buff[3] = (unsigned char)address;
-//    rd_wr_len      = PAGE_SIZE + 4;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, read_buf, file);
-//
-//}
-
-
-//void WritePage(unsigned int address, unsigned char *write_buf, int file)
-//{
-//    unsigned int i;
-//    unsigned char loc_tx_buff[1024];
-//    unsigned char loc_rx_buff[1024];
-//    unsigned int rd_wr_len  = 0;
-//
-//
-//    /* WRITE_ENABLED */
-//    loc_tx_buff[0] = CMD_WRITE_ENABLED;
-//    rd_wr_len      = 1;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//
-//    /* WRITE PAGE COMMAND */
-//    loc_tx_buff[0] = CMD_WRITE_512B_PAGE;
-//    loc_tx_buff[1] = (unsigned char)(address >> 16);
-//    loc_tx_buff[2] = (unsigned char)(address >> 8);
-//    loc_tx_buff[3] = (unsigned char)address;
-//
-//    for (i = 0; i < PAGE_SIZE; i++)
-//    {
-//
-//        loc_tx_buff[i + 4] = *write_buf++;
-//    }
-//
-//
-//    rd_wr_len      = PAGE_SIZE + 4;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//
-//    /* WRITE_DISABLED */
-//    loc_tx_buff[0] = CMD_WRITE_DISABLED;
-//    rd_wr_len      = 1;
-//
-//    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
-//
-//}
-
-
-//void write(uint32_t addr, const void *buf, uint32_t len)
-//{
-//	const uint8_t *p = (const uint8_t *)buf;
-//	uint32_t max, pagelen;
-//
-//	 //Serial.printf("WR: addr %08X, len %d\n", addr, len);
-//	do
-//	{
-//		if (busy) wait();
-//
-//		SPIPORT.beginTransaction(SPICONFIG);
-//		CSASSERT();
-//		// write enable command
-//		SPIPORT.transfer(0x06);
-//		CSRELEASE();
-//
-//		max = 256 - (addr & 0xFF);
-//		pagelen = (len <= max) ? len : max;
-//		 //Serial.printf("WR: addr %08X, pagelen %d\n", addr, pagelen);
-//		delayMicroseconds(1); // TODO: reduce this, but prefer safety first
-//
-//		CSASSERT();
-//		if (flags & FLAG_32BIT_ADDR)
-//		{
-//			SPIPORT.transfer(0x02); // program page command
-//			SPIPORT.transfer16(addr >> 16);
-//			SPIPORT.transfer16(addr);
-//		}
-//		else
-//		{
-//			SPIPORT.transfer16(0x0200 | ((addr >> 16) & 255));
-//			SPIPORT.transfer16(addr);
-//		}
-//		addr += pagelen;
-//		len -= pagelen;
-//
-//
-//
-//		do
-//		{
-//			SPIPORT.transfer(*p++);
-//		}
-//		while (--pagelen > 0);
-//
-//
-//		CSRELEASE();
-//		busy = 4;
-//		SPIPORT.endTransaction();
-//
-//	}
-//	while (len > 0);
-//
-//
-//}
-
-
-
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void ReadPage(unsigned int address, unsigned char *read_buf, int file)
@@ -367,7 +195,7 @@ void ReadPage(unsigned int address, unsigned char *read_buf, int file)
     unsigned int rd_wr_len  = 0;
 
 
-    /* READ OAGE COMMAND */
+    /* READ PAGE COMMAND */
     loc_tx_buff[0] = CMD_4FAST_READ_PAGE;
 
     loc_tx_buff[1] = (unsigned char)(address >> 24);
@@ -421,7 +249,7 @@ void Flash_Read_File(uint32_t address, uint32_t len_buff, unsigned char *read_bu
 
         //printf("loc_address 0x%08x\n", loc_address);
 
-         /* READ OAGE COMMAND */
+         /* READ PAGE COMMAND */
         loc_tx_buff[0] = CMD_4FAST_READ_PAGE;
 
         loc_tx_buff[1] = (unsigned char)(loc_address >> 24);
@@ -474,12 +302,10 @@ void WritePage(unsigned int address, unsigned char *write_buf, int file)
 
     for (i = 0; i < PAGE_SIZE; i++)
     {
-
         loc_tx_buff[i + 5] = *write_buf++;
     }
 
-    rd_wr_len      = PAGE_SIZE + 5;
-
+    rd_wr_len = PAGE_SIZE + 5;
     spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
 
     /* WRITE_DISABLED */
@@ -682,21 +508,23 @@ int SizeOfFile(const char *filename, uint32_t *size_file)
 
 
 
-int CopyFileToBuffer(const char *filename, unsigned char *data_file_in)
+int CopyFileToBuffer(const char *filename, unsigned char *data_file_in, uint32_t num_data_byte)
 {
     FILE *fdata;
     uint32_t sizeoffile = 0;
 
     /* apre il file */
-    fdata = fopen(filename, "r");
+    fdata = fopen(filename, "rb");
     if(fdata == NULL)
     {
         perror("Errore in apertura del file");
         exit(1);
     }
 
-    SizeOfFile(filename, &sizeoffile);
-    fread(data_file_in, sizeoffile, 1, fdata); //leggo file
+    //SizeOfFile(filename, &sizeoffile);
+    //fread(data_file_in, sizeoffile, 1, fdata); //leggo file
+
+    fread(data_file_in, num_data_byte, 1, fdata); //leggo file
     /* chiude il file */
     fclose(fdata);
 
@@ -746,6 +574,22 @@ void ReadRegister(uint8_t reg_to_read, uint8_t *reg_read, int file)
     spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
 
     *reg_read  = loc_rx_buff[1];
+}
+
+
+
+void ReadIdentifications(uint8_t reg_to_read, uint8_t *reg_read, int file)
+{
+    unsigned char loc_tx_buff[50];
+    unsigned char loc_rx_buff[50];
+    unsigned int  rd_wr_len  = 0;
+
+    /* WRITE_ENABLED */
+    loc_tx_buff[0] = reg_to_read;
+    rd_wr_len      = 41; //40 dati + 1 comando
+
+    spi_handler(loc_tx_buff, rd_wr_len, reg_read, file);
+
 }
 
 

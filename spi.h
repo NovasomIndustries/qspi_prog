@@ -39,6 +39,7 @@
 
 
 
+
 #define PAGE_SIZE                   0x200       /*512 bytes => totale 131072 pagine*/
 #define SECTOR_SIZE                 0x40000     /* 256 settori totale 256KBytes*/
 #define FLASH_SIZE                  0X4000000   /* 512MBits => 64MBytes*/
@@ -57,7 +58,7 @@ int SizeOfFile(const char *filename, uint32_t *size_file);
 
 void WIP_FlagStatus(unsigned char *wip, int file);
 void BulkErase(int file);
-int CopyFileToBuffer(const char *filename, unsigned char *data_file_in);
+int CopyFileToBuffer(const char *filename, unsigned char *data_file_in, uint32_t num_data_byte);
 void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file);
 
 void ReadRegister(uint8_t reg_to_read, uint8_t *reg_read, int file);
@@ -66,8 +67,11 @@ void WriteRegister(uint8_t reg_to_write, uint8_t value_to_write, int file);
 
 void Write_CR_SR1(uint8_t CR_to_write, uint8_t SR1_to_write, int file);
 
-void flash_write_enable(uint32_t file) ;
+void flash_write_enable(uint32_t file);
 void flash_write_disable(uint32_t file);
+
+
+void ReadIdentifications(uint8_t reg_to_read, uint8_t *reg_read, int file);
 
 
 
