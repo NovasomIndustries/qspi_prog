@@ -102,22 +102,20 @@ int main (int argc, char **argv)
 
     opterr = 0;
 
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+ export QSPI WP pin.
-    if (GPIOExport(QSPI_WP_PRT, QSPI_WP_BIT) == -1)
-        printf("error to export a pin QSPI_WP\r\n");
-    else
-        if (GPIODirection(QSPI_WP_PRT, QSPI_WP_BIT, OUT) == -1)
-            printf("error to set direction of pin QSPI_WP\r\n");
+
+
 
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+ export POWER PRESENCE pin.
-    if (GPIOExport(POW_PRE_PRT, POW_PRE_BIT) == -1)
-        printf("error to export a pin POW_PRE\r\n");
+    //+ export ENA BUF pin.
+    if (GPIOExport(ENA_BUF_PRT, ENA_BUF_BIT) == -1)
+        printf("error to export a pin ENA_BUF\r\n");
     else
-        if (GPIODirection(POW_PRE_PRT, POW_PRE_BIT, IN) == -1)
-            printf("error to set direction of pin POW_PRE\r\n");
+        if (GPIODirection(ENA_BUF_PRT, ENA_BUF_BIT, OUT) == -1)
+            printf("error to set direction of pin ENA_BUF\r\n");
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ BUFFER: TRI-STATE MODE
+    GPIOWrite(ENA_BUF_PRT, ENA_BUF_BIT, 1);//Pull OE high to place all outputs in 3-state mode
 
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -139,6 +137,15 @@ int main (int argc, char **argv)
 
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ export POWER PRESENCE pin.
+    if (GPIOExport(POW_PRE_PRT, POW_PRE_BIT) == -1)
+        printf("error to export a pin POW_PRE\r\n");
+    else
+        if (GPIODirection(POW_PRE_PRT, POW_PRE_BIT, IN) == -1)
+            printf("error to set direction of pin POW_PRE\r\n");
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ export QSPI RST pin.
     if (GPIOExport(QSPI_RST_PRT, QSPI_RST_BIT) == -1)
         printf("error to export a pin QSPI_RST_\r\n");
@@ -148,41 +155,56 @@ int main (int argc, char **argv)
 
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+ export ENA BUF pin.
-    if (GPIOExport(ENA_BUF_PRT, ENA_BUF_BIT) == -1)
-        printf("error to export a pin ENA_BUF\r\n");
+    //+ export QSPI WP pin.
+    if (GPIOExport(QSPI_WP_PRT, QSPI_WP_BIT) == -1)
+        printf("error to export a pin QSPI_WP\r\n");
     else
-        if (GPIODirection(ENA_BUF_PRT, ENA_BUF_BIT, OUT) == -1)
-            printf("error to set direction of pin ENA_BUF\r\n");
+        if (GPIODirection(QSPI_WP_PRT, QSPI_WP_BIT, OUT) == -1)
+            printf("error to set direction of pin QSPI_WP\r\n");
 
 
-    usleep(1000);//1ms
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //BUFFER: NO TRI-STATE
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    usleep(5000);
     GPIOWrite(ENA_BUF_PRT, ENA_BUF_BIT, 0);//Pull OE high to place all outputs in 3-state mode
     usleep(1000);//1ms
 
 
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //controllo se devo alimentare il target!!!
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     if (!GPIORead(POW_PRE_PRT, POW_PRE_BIT))
     {
         printf("\nTarget selfpowered\n");
         GPIOWrite(LDO_ENA_PRT, LDO_ENA_BIT, 0);//power off LDO on board
-
     }
     else
     {
         printf("\nTarget powered from programmer\n");
         GPIOWrite(LDO_ENA_PRT, LDO_ENA_BIT, 1);//power off LDO on board
-
     }
 
-    GPIOWrite(QSPI_RST_PRT, QSPI_RST_BIT, 0);
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     usleep(1000);//1ms
     GPIOWrite(QSPI_RST_PRT, QSPI_RST_BIT, 1);
+    usleep(5000);//1ms
+    GPIOWrite(QSPI_RST_PRT, QSPI_RST_BIT, 0);
+    GPIOWrite(QSPI_RST_PRT, QSPI_RST_BIT, 1);
 
-    GPIOWrite(QSPI_WP_PRT, QSPI_WP_BIT, 1);
+    GPIOWrite(QSPI_WP_PRT, QSPI_WP_BIT, 1);     // >>>> 0=WP 1=NO WP
     GPIOWrite(FAIL_LD_PRT, FAIL_LD_BIT, 0);
 
 
-    sleep(1);
+
+
+
+
+    //sleep(1);
     printf("Init...\r\n");
 
     while ((c = getopt (argc, argv, "f:a:i:n:cpwrbsh")) != -1)
@@ -287,12 +309,6 @@ int main (int argc, char **argv)
         printf (" -a [option for -r -w]Initial address to read/write in flash\n");
         printf (" -n [option for -r -w]Number of byte to read/write in flash\n");
 
-
-        /*
-        printf (" -p [option for -r]Print buffer of file read\n");
-        printf (" -i [option for -p]Initial address of buffer to read\n");
-        printf (" -c [option for -w]Check write operation\n");
-        */
         printf ("---------------------------------------------------------------\n");
         break;
 
@@ -309,6 +325,44 @@ int main (int argc, char **argv)
     for (index = optind; index < argc; index++)
         printf ("Non-option argument %s\n", argv[index]);
 
+
+    sleep(1);
+
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+  FAIL LED pin.
+    if (GPIODirection(FAIL_LD_PRT, FAIL_LD_BIT, IN) == -1)
+        printf("error to set direction of pin FAIL_LD\r\n");
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+  LDO ENABLE pin.
+    //if (GPIODirection(LDO_ENA_PRT, LDO_ENA_BIT, IN) == -1)
+        //printf("error to set direction of pin LDO_ENA\r\n");
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+  QSPI RST pin.
+    if (GPIODirection(QSPI_RST_PRT, QSPI_RST_BIT, IN) == -1)
+        printf("error to set direction of pin QSPI_RST_\r\n");
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+  QSPI WP pin.
+    if (GPIODirection(QSPI_WP_PRT, QSPI_WP_BIT, IN) == -1)
+        printf("error to set direction of pin QSPI_WP\r\n");
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+  ENA BUF pin.
+    if (GPIODirection(ENA_BUF_PRT, ENA_BUF_BIT, IN) == -1)
+        printf("error to set direction of pin ENA_BUF\r\n");
+
+    //LDO POWER OFF
+    GPIOWrite(LDO_ENA_PRT, LDO_ENA_BIT, 0);//power off LDO on board
+
+
     return 0;
 
 
@@ -324,6 +378,17 @@ void case_s_function(void)
     uint32_t loc_memory_size_byte;
     uint32_t loc_memory_size_bit;
 
+
+
+    //test
+    uint8_t CR_register, SR1_register;
+
+
+
+
+
+
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ open dev
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -334,8 +399,30 @@ void case_s_function(void)
         printf("\nERROR TO OPEN SPIDEV\n");
     }
 
+
+    //test reinserire
     GetMemorySize(&loc_memory_size_byte, &loc_memory_size_bit, file);
     printf("\nDevice Size : %d MB - %d Mb\n", loc_memory_size_byte, loc_memory_size_bit);
+
+
+    //test scrivo cr2v - cambio latency byte -
+    //WriteRegister_WRAR(0x71, 0x00800003, 0x00, file);
+
+
+    //leggo cr2v test test
+    //ReadRegister_RDAR(0x65, 0x00800003, &SR1_register, file);
+    //printf("\ncr2v Register: 0x%02X\n", SR1_register);
+
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ elimino dummy byte in lettura (no latency)
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //SetPageSize(PAGE_SIZE_512, file);
+
+
+
+
 
     close(file);
     printf("\nFinish\n");
@@ -410,6 +497,20 @@ void case_w_function(const char *path_file,  uint32_t address, uint8_t flag_chec
         printf("\nERROR TO OPEN SPIDEV\n");
     }
 
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ elimino dummy byte in lettura (no latency)
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //codice che vale per la memoria: S25FS512S
+    WriteRegister_WRAR(0x71, 0x00800003, 0x00, file);
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ elimino dummy byte in lettura (no latency)
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    SetPageSize(PAGE_SIZE_512, file);
+
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ Size of memory
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -445,6 +546,8 @@ void case_w_function(const char *path_file,  uint32_t address, uint8_t flag_chec
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ ESEGUO CHECK FILE SCRITTO
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ LEGGO FILE SCRITTO
@@ -510,9 +613,14 @@ void case_r_function(const char *path_file,  uint32_t address, uint32_t number_b
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ LEGGO REGISTRO CR & SR1 ed elimino dummy byte in lettura (no latency)
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    ReadRegister(CMD_READ_SR1, &SR1_register, file);
-    ReadRegister(CMD_READ_CR,  &CR_register, file);
-    Write_CR_SR1((CR_register | 0xc0), SR1_register, file);
+    //codice commentato, vale per la memoria: S25FL512S
+    //ReadRegister(CMD_READ_SR1, &SR1_register, file);
+    //ReadRegister(CMD_READ_CR,  &CR_register, file);
+    //Write_CR_SR1((CR_register | 0xc0), SR1_register, file);
+
+    //codice che vale per la memoria: S25FS512S
+    WriteRegister_WRAR(0x71, 0x00800003, 0x00, file);   //elimino dummy byte in lettura (no latency)
+
 
     printf("\nWait...\n");
 
@@ -594,19 +702,49 @@ int xtoi(const char *hptr, uint32_t *in_val)
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+
-//+           CASE -p Print buffer
+//+           GetMemorySize Function
 //+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 void GetMemorySize(uint32_t *memory_size_byte, uint32_t *memory_size_bit, int file)
 {
     int8_t data_read[100];
+    int i;
 
     ReadIdentifications(CMD_GET_IDENTIFICATION, data_read, file);
+
     *memory_size_byte = (pow(2, data_read[40])/1024)/1024;
     *memory_size_bit  = *memory_size_byte * 8;
 
+
+
 }
 
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//+
+//+
+//+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void QSPI_CS_LOW(void)
+{
+    FILE *file;
+
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+     ini write a file
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file = spi_init(SPIDEV_PATH); //open dev
+    if(file == -1)
+    {
+        GPIOWrite(FAIL_LD_PRT, FAIL_LD_BIT, 1);//led error
+        printf("\nERROR TO OPEN SPIDEV\n");
+    }
+
+    /* dummy */
+    spi_send_dummy(file);
+
+    close(file);
+}
 
 
 

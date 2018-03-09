@@ -99,6 +99,36 @@ int spi_init(char filename[40])
 }
 
 
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//
+//  SPI DEV handler dummy byte
+//
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+char * spi_send_dummy(int file)
+{
+    int             status;
+    unsigned char   *write_buf;
+    uint32_t        rd_wr_len;
+    unsigned char   *read_buf;
+
+    xfer[0].tx_buf = (unsigned long)write_buf;
+    xfer[0].rx_buf = (unsigned long)read_buf;
+    xfer[0].len    = (uint32_t)20;
+
+    status = ioctl(file, SPI_IOC_MESSAGE(1), xfer);
+
+    if (status < 0)
+    {
+        perror("SPI_IOC_MESSAGE ");
+        return;
+    }
+
+    return (1);
+}
+
+
 
 
 
@@ -119,13 +149,13 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
     //+                     Check if device is BUSY
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    unsigned char loc_tx_buff    = 0x05;
-    unsigned char loc_rx_buff[2] = {0x00, 0x00};
+    unsigned char loc_tx_buff    = CMD_READ_SR1;
+    unsigned char loc_rx_buff[2] = {0x00, 0x00};//dummy
 
 
     xfer[0].tx_buf = (unsigned long)&loc_tx_buff;
     xfer[0].rx_buf = (unsigned long)loc_rx_buff;
-    xfer[0].len    = 3;             /* Length of  command to write+read*/
+    xfer[0].len    = 2;             /* Length of  command to write+read*/
 
 
 
@@ -169,14 +199,11 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
     xfer[0].rx_buf = (unsigned long)read_buf;
     xfer[0].len    = (uint32_t)rd_wr_len; /* Length of  command to write*/
 
-
-
-
     status = ioctl(file, SPI_IOC_MESSAGE(1), xfer);
 
     if (status < 0)
     {
-        perror("SPI_IOC_MESSAGE ");
+        perror("SPI_IOC_MESSAGE");
         return;
     }
 
@@ -239,15 +266,6 @@ void Flash_Read_File(uint32_t address, uint32_t len_buff, unsigned char *read_bu
             rd_wr_len     = loc_len_buff;
             loc_len_buff  = 0;
         }
-
-        //rd_wr_len    = (loc_len_buff > 2048) ? 2048 : loc_len_buff;
-        //loc_len_buff = (loc_len_buff > 2048) ? (loc_len_buff - 2048) : 0;
-
-        //printf("rd_wr_len %u\n", rd_wr_len);
-
-        //printf("loc_len_buff %u\n", loc_len_buff);
-
-        //printf("loc_address 0x%08x\n", loc_address);
 
          /* READ PAGE COMMAND */
         loc_tx_buff[0] = CMD_4FAST_READ_PAGE;
@@ -393,7 +411,8 @@ void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t 
 	    flash_write_enable(file);
 
         /* controllo indirizzo POSIZIONAMENTO, per non sforare pagina */
-		max     = 0x00000200 - (addr & 0x000001FF);
+		max     = 0x00000200 - (addr & 0x000001FF);     //pagine 512 B
+        //max     = 0x00000100 - (addr & 0x000000FF);   //pagine 256 B
 		pagelen = (len_data <= max) ? len_data : max;
 
 
@@ -576,6 +595,80 @@ void ReadRegister(uint8_t reg_to_read, uint8_t *reg_read, int file)
     *reg_read  = loc_rx_buff[1];
 }
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ReadRegister_RDAR
+//
+// The Read Any Register (RDAR) command provides a way to read all device registers - non-volatile and volatile.
+//
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void ReadRegister_RDAR(uint8_t reg_to_read, uint32_t addr_reg_to_read, uint8_t *reg_read, int file)
+{
+    unsigned char loc_tx_buff[10];
+    unsigned char loc_rx_buff[20];
+    unsigned int  rd_wr_len  = 0;
+
+    /* WRITE_ENABLED */
+
+    loc_tx_buff[0] = reg_to_read;                       //command
+
+    loc_tx_buff[3] = addr_reg_to_read & 0xff;           //address
+    loc_tx_buff[2] = (addr_reg_to_read >> 8) & 0xff;
+    loc_tx_buff[1] = (addr_reg_to_read >> 16) & 0xff;
+
+    loc_tx_buff[4] = 0x00;                              //dummy
+    loc_tx_buff[5] = 0x00;
+
+
+    rd_wr_len      = 6;//test sistemare il numero dei byte
+
+    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
+    *reg_read  = loc_rx_buff[5];
+}
+
+
+
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// WriteRegister_WRAR
+//
+// The Write Any Register (WRAR) command provides a way to write any device register - non-volatile or volatile.
+//
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void WriteRegister_WRAR(uint8_t reg_to_write, uint32_t addr_reg_to_read, uint8_t data_to_write, int file)
+{
+    unsigned char loc_tx_buff[10];
+    unsigned char loc_rx_buff[20];
+    unsigned int  rd_wr_len  = 0;
+
+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    flash_write_enable(file);
+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+     Write "Read Latency" dummy cycle
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /* 3byte add */
+    loc_tx_buff[0] = reg_to_write;                       //command
+
+    loc_tx_buff[3] = addr_reg_to_read & 0xff;           //address
+    loc_tx_buff[2] = (addr_reg_to_read >> 8) & 0xff;
+    loc_tx_buff[1] = (addr_reg_to_read >> 16) & 0xff;
+
+    loc_tx_buff[4] = data_to_write;                     //data to write!!!
+
+    rd_wr_len      = 5;
+
+    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
+
+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    flash_write_disable( file);
+}
 
 
 void ReadIdentifications(uint8_t reg_to_read, uint8_t *reg_read, int file)
@@ -583,6 +676,12 @@ void ReadIdentifications(uint8_t reg_to_read, uint8_t *reg_read, int file)
     unsigned char loc_tx_buff[50];
     unsigned char loc_rx_buff[50];
     unsigned int  rd_wr_len  = 0;
+    int32_t i;
+
+    for(i=1; i<49; i++)
+    {
+        loc_tx_buff[i] = i;
+    }
 
     /* WRITE_ENABLED */
     loc_tx_buff[0] = reg_to_read;
@@ -617,6 +716,29 @@ void Write_CR_SR1(uint8_t CR_to_write, uint8_t SR1_to_write, int file)
     flash_write_disable( file);
 }
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//+ Scrive i registri:
+//+ Input Status Register-1
+//+ Configuration Register
+//
+//
+// Codice che vale per la memoria: S25FS512S
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void SetPageSize(uint8_t page_size, int file)
+{
+    uint8_t loc_cr3v;
+
+    ReadRegister_RDAR(0x65, 0x00800004, &loc_cr3v, file);
+
+    if (page_size)
+        loc_cr3v |= 0x10;//abilito 512
+    else
+        loc_cr3v &= 0xEF;//abilito 256
+
+    WriteRegister_WRAR(0x71, 0x00800004, loc_cr3v, file);
+
+
+}
 
 
 

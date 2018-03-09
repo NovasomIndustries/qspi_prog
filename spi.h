@@ -33,16 +33,25 @@
 #define CMD_BULK_ERASE              0xC7
 
 
+
 #define CMD_READ_CR                 0x35
 #define CMD_READ_SR1                0x05
 #define CMD_WRR                     0x01
 
-
+/*
+#define CMD_READ_CR                 0x65
+#define CMD_READ_SR1                0x05
+#define CMD_WRR                     0x71
+*/
 
 
 #define PAGE_SIZE                   0x200       /*512 bytes => totale 131072 pagine*/
 #define SECTOR_SIZE                 0x40000     /* 256 settori totale 256KBytes*/
 #define FLASH_SIZE                  0X4000000   /* 512MBits => 64MBytes*/
+
+
+#define PAGE_SIZE_512               0x01
+#define PAGE_SIZE_256               0x00
 
 
 int spi_init(char filename[40]);
@@ -62,6 +71,8 @@ int CopyFileToBuffer(const char *filename, unsigned char *data_file_in, uint32_t
 void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file);
 
 void ReadRegister(uint8_t reg_to_read, uint8_t *reg_read, int file);
+void ReadRegister_RDAR(uint8_t reg_to_read, uint32_t addr_reg_to_read, uint8_t *reg_read, int file);
+void WriteRegister_WRAR(uint8_t reg_to_read, uint32_t addr_reg_to_read, uint8_t data_to_write, int file);
 
 void WriteRegister(uint8_t reg_to_write, uint8_t value_to_write, int file);
 
@@ -70,9 +81,9 @@ void Write_CR_SR1(uint8_t CR_to_write, uint8_t SR1_to_write, int file);
 void flash_write_enable(uint32_t file);
 void flash_write_disable(uint32_t file);
 
-
 void ReadIdentifications(uint8_t reg_to_read, uint8_t *reg_read, int file);
-
+char * spi_send_dummy(int file);
+void SetPageSize(uint8_t page_size, int file);
 
 
 
