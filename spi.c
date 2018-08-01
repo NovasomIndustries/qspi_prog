@@ -480,7 +480,7 @@ unsigned char Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, 
         spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
 		flash_write_disable(file);
 
-        #if 0
+        //#if 0
         /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
         /* check blocco dati scritti */
         /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -496,7 +496,7 @@ unsigned char Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, 
                 return (uc_error);
             }
         }
-        #endif
+        //#endif
 
         /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
         /* aggiorno per next step */
