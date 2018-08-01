@@ -122,7 +122,7 @@ char * spi_send_dummy(int file)
     if (status < 0)
     {
         perror("SPI_IOC_MESSAGE ");
-        return;
+        return 0;
     }
 
     return (1);
@@ -173,7 +173,7 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
 
                  if (i > 998){  /* Device Busy, retry*/
                     printf("SPI Device Timeout\n");
-                    return;
+                    return 0;
                 }
                 //printf("device is busy, wait!\r\n"); //eliminare test
             }
@@ -186,7 +186,7 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
         else
         {
             perror("SPI_IOC_MESSAGE -1");
-            return;
+            return 0;
         }
 
     }
@@ -204,7 +204,7 @@ char * spi_handler(unsigned char *write_buf, uint32_t rd_wr_len, unsigned char *
     if (status < 0)
     {
         perror("SPI_IOC_MESSAGE");
-        return;
+        return 0;
     }
 
     return (1);
@@ -377,8 +377,8 @@ void ErasePage(unsigned int address, int file)
 
 void BulkErase(int file)
 {
-    unsigned char loc_tx_buff[5];
-    unsigned char loc_rx_buff[5];
+    unsigned char loc_tx_buff[6];
+    unsigned char loc_rx_buff[6];
     unsigned int rd_wr_len  = 0;
 
     /* write enable */
@@ -387,14 +387,53 @@ void BulkErase(int file)
 
     /* ERASE */
     loc_tx_buff[0] = CMD_BULK_ERASE;
+    //loc_tx_buff[0] = CMD_WRITE_ENABLED;
+    //loc_tx_buff[0] = CMD_4ERASE_SECTOR;
+    //loc_tx_buff[1] = loc_tx_buff[2] = loc_tx_buff[3] = loc_tx_buff[4] = 0;
     rd_wr_len      = 1;
 
     spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
 }
 
 
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//+
+//+
+//+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file)
+
+void SectorErase(int file, int addr)
+{
+    unsigned char loc_tx_buff[6];
+    unsigned char loc_rx_buff[6];
+    unsigned int rd_wr_len  = 0;
+
+    addr *= 256*1024;
+
+    /* write enable */
+    flash_write_enable(file);
+
+
+    /* ERASE */
+
+    loc_tx_buff[0] = CMD_4ERASE_SECTOR;//command
+
+
+    loc_tx_buff[4] = addr & 0xff;           //address lsb
+    loc_tx_buff[3] = (addr >> 8) & 0xff;
+    loc_tx_buff[2] = (addr >> 16) & 0xff;
+    loc_tx_buff[1] = (addr >> 24) & 0xff;      //address msb
+
+
+    rd_wr_len      = 5;
+
+    spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
+}
+
+
+
+unsigned char Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file)
 {
     uint32_t i;
     unsigned char loc_tx_buff[1024];
@@ -402,7 +441,10 @@ void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t 
     uint32_t rd_wr_len  = 0;
 
 	uint32_t max;
+	uint32_t addr_loc;
 	uint32_t pagelen, len_data;
+
+	unsigned char uc_error = 0;
 
 	len_data = len;
 
@@ -428,24 +470,48 @@ void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t 
 
         for (i = 0; i < pagelen; i++)
         {
-
             loc_tx_buff[i + 5] = *write_buf++;
         }
 
         rd_wr_len = pagelen + 5;
-
-        /* inoltro richiesta scrittura */
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
+        /* inoltro richiesta scrittura blocco*/
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
         spi_handler(loc_tx_buff, rd_wr_len, loc_rx_buff, file);
+		flash_write_disable(file);
 
+        #if 0
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
+        /* check blocco dati scritti */
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
+        Flash_Read_File(addr, pagelen, loc_rx_buff, file);
 
+        uc_error = 1;
+        for(i = 0; i < pagelen; i++)
+        {
+            if (loc_tx_buff[i + 5] != loc_rx_buff[i])
+            {
+                uc_error = 0;
+                // esco ho avuto errore -->break;
+                return (uc_error);
+            }
+        }
+        #endif
+
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
+        /* aggiorno per next step */
+        /* ++++++++++++++++++++++++++++++++++++++++++++++++++ */
 		addr      += pagelen;
 		len_data  -= pagelen;
 
-		flash_write_disable(file);
+		printf("Len Data %d\n", len_data);
 
 	}
 	while (len_data > 0);
 
+    printf("\n");
+
+    return (uc_error);
 }
 
 

@@ -68,7 +68,7 @@ int SizeOfFile(const char *filename, uint32_t *size_file);
 void WIP_FlagStatus(unsigned char *wip, int file);
 void BulkErase(int file);
 int CopyFileToBuffer(const char *filename, unsigned char *data_file_in, uint32_t num_data_byte);
-void Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file);
+unsigned char Flash_Write_File(uint32_t addr, uint8_t *write_buf, uint32_t len, uint32_t file);
 
 void ReadRegister(uint8_t reg_to_read, uint8_t *reg_read, int file);
 void ReadRegister_RDAR(uint8_t reg_to_read, uint32_t addr_reg_to_read, uint8_t *reg_read, int file);

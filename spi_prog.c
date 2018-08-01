@@ -37,10 +37,15 @@
 **********************************************************************************************/
 static const char SPIDEV_PATH[] = "/dev/spidev3.0";
 
-unsigned char data_file_out_buffer[67108864 + 20];// 64 Mbytes + 20
+//unsigned char data_file_out_buffer[67108864 + 20];// 64 Mbytes + 20
+
+unsigned char data_file_out_buffer[5120 + 20];    //  5 Mbytes + 20
 unsigned char data_file_in_buffer[67108864 + 20]; // 64 Mbytes + 20
 
+
+
 void case_b_function(void);
+void case_e_function(void);
 
 
 //4_5
@@ -207,7 +212,7 @@ int main (int argc, char **argv)
     //sleep(1);
     printf("Init...\r\n");
 
-    while ((c = getopt (argc, argv, "f:a:i:n:cpwrbsh")) != -1)
+    while ((c = getopt (argc, argv, "f:a:i:n:cpwrbesh")) != -1)
 
     switch (c)
     {
@@ -261,6 +266,10 @@ int main (int argc, char **argv)
         case_b_function();
         break;
 
+      case 'e':
+        case_e_function();
+        break;
+
      case 'p':/* print buffer read */
         printf ("\naddress_init %u - num_byte %u\n", address_init, num_byte);
         case_p_function(address_init, num_byte);
@@ -302,6 +311,8 @@ int main (int argc, char **argv)
         printf ("---------------------------------------------------------------\n");
         printf ("HELP MENU\n");
         printf ("\n");
+        printf (" -b QSPI Bulk Erase\n");
+        printf (" -e QSPI Sector(first 10 Sector) Erase\n");
         printf (" -s QSPI Memory size\n");
         printf (" -r Read file\n");
         printf (" -w Write file\n");
@@ -437,7 +448,7 @@ void case_s_function(void)
 void case_b_function(void)
 {
     FILE *file;
-    uint8_t wip_flag = 0xff;
+    uint8_t wip_flag = 0xff, i;
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ BULK ERASE
@@ -450,6 +461,7 @@ void case_b_function(void)
     }
 
     BulkErase(file);
+
     printf("Bulk Erase Init wait:\n");
     do {
 
@@ -472,6 +484,61 @@ void case_b_function(void)
 
 
 }
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//+           CASE -e 10 sector erase
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void case_e_function(void)
+{
+    FILE *file;
+    uint8_t wip_flag = 0xff, i;
+
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //+ sector ERASE
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file = spi_init(SPIDEV_PATH); //dev
+    if(file == -1)
+    {
+        GPIOWrite(FAIL_LD_PRT, FAIL_LD_BIT, 1);//led error
+        printf("\nERROR TO OPEN SPIDEV\n");
+    }
+
+    for (i=0; i<10;i++)
+    {
+        SectorErase(file,i);
+        printf("Sector Erase N°%d - Init wait:\n", i);
+        do {
+
+            printf("|\r");fflush(stdout);
+            usleep(500000);
+            printf("/\r");fflush(stdout);
+            usleep(500000);
+            printf("-\r");fflush(stdout);
+            usleep(500000);
+            printf("\\\r");fflush(stdout);
+            usleep(500000);
+
+            WIP_FlagStatus(&wip_flag, file);//write in progres flag
+
+
+        } while (wip_flag);
+
+        usleep(100);
+
+    }
+
+    close(file);
+    printf("\nFirst 10 Sector Erase Finish\n");
+
+
+}
+
+
+
+
+
+
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+
@@ -539,39 +606,53 @@ void case_w_function(const char *path_file,  uint32_t address, uint8_t flag_chec
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+ Scrittura del file
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Flash_Write_File(address, data_file_in_buffer, sizeoffile, file);
-
-    printf("\nWtite File Finish.\n");
-
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+ ESEGUO CHECK FILE SCRITTO
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+ LEGGO FILE SCRITTO
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    printf("\nIni Check File, Wait..\n");
-    Flash_Read_File(address, sizeoffile, data_file_out_buffer, file);
-
-    c_error = 1;
-    for(i = 0; i < sizeoffile; i++)
+    if (Flash_Write_File(address, data_file_in_buffer, sizeoffile, file))
     {
-        if (data_file_in_buffer[i] != data_file_out_buffer[i])
-        {
-            c_error = 0;
-            break;
-        }
-    }
-
-    if (c_error)
         printf("\nEnd Check File, PASS!\n");
+
+    }
     else
     {
         GPIOWrite(FAIL_LD_PRT, FAIL_LD_BIT, 1);
         printf("\nError Check File\n");
     }
+
+
+
+    printf("\nWtite File Finish.\n");
+
+//    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    //+ ESEGUO CHECK FILE SCRITTO
+//    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//
+//
+//    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    //+ LEGGO FILE SCRITTO
+//    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    printf("\nIni Check File, Wait..\n");
+//    Flash_Read_File(address, sizeoffile, data_file_out_buffer, file);
+//
+//    c_error = 1;
+//    for(i = 0; i < sizeoffile; i++)
+//    {
+//        if (data_file_in_buffer[i] != data_file_out_buffer[i])
+//        {
+//            c_error = 0;
+//            break;
+//        }
+//    }
+//
+//    if (c_error)
+//        printf("\nEnd Check File, PASS!\n");
+//    else
+//    {
+//        GPIOWrite(FAIL_LD_PRT, FAIL_LD_BIT, 1);
+//        printf("\nError Check File\n");
+//    }
+
+
+
     close(file);//spi dev andler file
 
 }
@@ -624,13 +705,13 @@ void case_r_function(const char *path_file,  uint32_t address, uint32_t number_b
 
     printf("\nWait...\n");
 
-    Flash_Read_File(address, number_byte, data_file_out_buffer, file);
+    Flash_Read_File(address, number_byte, data_file_in_buffer, file);
 
     printf("\nWrite file.\n");
     //scrivo i dati letti nel file passato tra gli argomenti in ingresso..
     write_ptr = fopen(path_file, "wb");
-    //fwrite(data_file_out_buffer, sizeof(data_file_out_buffer), 1, write_ptr);
-    fwrite(data_file_out_buffer, number_byte, 1, write_ptr);
+    //fwrite(data_file_in_buffer, sizeof(data_file_in_buffer), 1, write_ptr);
+    fwrite(data_file_in_buffer, number_byte, 1, write_ptr);
     close(write_ptr);//file close
 
     close(file);//file for spi handler
